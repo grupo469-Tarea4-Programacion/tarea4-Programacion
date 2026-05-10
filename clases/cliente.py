@@ -192,21 +192,46 @@ class Cliente(Entidad):
 
     @staticmethod
     def _validar_telefono(telefono: str) -> str:
-        """Valida que el teléfono tenga entre 7 y 15 dígitos (permite + al inicio)."""
+        """
+        Valida que el telefono tenga entre 10 y 15 digitos,
+        no contenga letras ni simbolos, y no sea un numero imposible.
+        """
         try:
             if not telefono or not isinstance(telefono, str):
                 raise ErrorValidacion("telefono", "debe ser una cadena de texto")
             telefono = telefono.strip().replace(" ", "").replace("-", "")
-            patron = r"^\+?\d{7,15}$"
+            solo_digitos = telefono.lstrip("+")
+            if not solo_digitos.isdigit():
+                raise ErrorValidacion(
+                    "telefono",
+                     "solo debe contener digitos, sin letras ni simbolos"
+                )
+            if len(solo_digitos) < 10:
+                raise ErrorValidacion(
+                    "telefono",
+                    f"debe tener minimo 10 digitos, se ingresaron {len(solo_digitos)}"
+                )
+            if len(solo_digitos) > 15:
+                raise ErrorValidacion(
+                    "telefono",
+                    f"debe tener maximo 15 digitos, se ingresaron {len(solo_digitos)}"
+                )
+            if len(set(solo_digitos)) == 1:
+                raise ErrorValidacion(
+                    "telefono",
+                    f"'{telefono}' no es un numero valido, "
+                    f"todos los digitos son iguales"
+                )
+            patron = r"^\+?\d{10,15}$"
             if not re.match(patron, telefono):
                 raise ErrorValidacion(
                     "telefono",
-                    f"'{telefono}' no tiene un formato válido (7-15 dígitos)"
+                    f"'{telefono}' no tiene un formato valido"
                 )
         except ErrorValidacion:
             raise
         except Exception as e:
-            raise ErrorCliente(f"Error validando teléfono: {e}") from e
+            raise ErrorCliente(f"Error validando telefono: {e}") from e
         else:
             return telefono
 

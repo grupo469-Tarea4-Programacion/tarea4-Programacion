@@ -1,13 +1,14 @@
 """
-Módulo de interfaz gráfica con Tkinter.
-Autor: Integrante Nasly Isabella Velez Muñoz - Integrador
-Descripción: Interfaz gráfica que conecta todas las funcionalidades
-             del sistema Software FJ: gestión de clientes, servicios
-             y reservas.
+Graphical User Interface module using Tkinter.
+Author: Integrante Nasly Isabella Velez Muñoz - Integrator
+Description: Graphical interface connecting all features of the
+             Software FJ system: clients, services, and reservations.
 """
 
+import re
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
+
 from logger.logger import Logger
 from clases.cliente import Cliente
 from clases.reserva import Reserva
@@ -19,587 +20,981 @@ from excepciones.excepciones import ErrorSistema
 
 class InterfazSoftwareFJ(tk.Tk):
     """
-    Ventana principal de la aplicación Software FJ.
-    Organizada en pestañas: Clientes, Servicios, Reservas, Logs.
+    Main application window for Software FJ.
+    Tabs: Clients, Services, Reservations, System Logs.
     """
 
-    COLOR_FONDO    = "#1e1e2e"
-    COLOR_PANEL    = "#2a2a3e"
-    COLOR_ACENTO   = "#7c3aed"
-    COLOR_TEXTO    = "#e2e8f0"
-    COLOR_EXITO    = "#22c55e"
-    COLOR_ERROR    = "#ef4444"
-    COLOR_ENTRADA  = "#3b3b52"
+    C_BG      = "#1e1e2e"
+    C_PANEL   = "#2a2a3e"
+    C_ACCENT  = "#7c3aed"
+    C_TEXT    = "#e2e8f0"
+    C_INPUT   = "#3b3b52"
+    C_HINT    = "#94a3b8"
+    C_BORDER  = "#4c4c6e"
+    C_SUCCESS = "#22c55e"
+    C_WARN    = "#f59e0b"
+    C_ERROR   = "#ef4444"
 
     def __init__(self):
         super().__init__()
+        self._logger = Logger()
+        self._clients: list = []
+        self._services: list = []
+        self._reservations: list = []
+        self._setup_window()
+        self._build_ui()
 
-        self.logger = Logger()
+    # Window setup
 
-        # Datos en memoria
-        self._clientes: list[Cliente] = []
-        self._servicios: list = []
-        self._reservas: list[Reserva] = []
+    def _setup_window(self) -> None:
+        self.title("Software FJ  -  Integrated Management System")
+        self.geometry("1000x700")
+        self.minsize(860, 600)
+        self.configure(bg=self.C_BG)
 
-        self._configurar_ventana()
-        self._construir_ui()
-
-    # Configuración de la ventana 
-
-    def _configurar_ventana(self) -> None:
-        self.title("Software FJ Sistema de Gestión")
-        self.geometry("900x650")
-        self.resizable(True, True)
-        self.configure(bg=self.COLOR_FONDO)
-
-        # Estilo general
-        estilo = ttk.Style(self)
-        estilo.theme_use("clam")
-        estilo.configure(
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure(
             "TNotebook",
-            background=self.COLOR_FONDO,
+            background=self.C_BG,
             borderwidth=0
         )
-        estilo.configure(
+        style.configure(
             "TNotebook.Tab",
-            background=self.COLOR_PANEL,
-            foreground=self.COLOR_TEXTO,
-            padding=[16, 8],
+            background=self.C_PANEL,
+            foreground=self.C_TEXT,
+            padding=[20, 9],
             font=("Segoe UI", 10, "bold")
         )
-        estilo.map(
+        style.map(
             "TNotebook.Tab",
-            background=[("selected", self.COLOR_ACENTO)],
+            background=[("selected", self.C_ACCENT)],
             foreground=[("selected", "white")]
         )
-        estilo.configure(
-            "TFrame", background=self.COLOR_FONDO
+        style.configure("TFrame", background=self.C_BG)
+        style.configure(
+            "TCombobox",
+            fieldbackground=self.C_INPUT,
+            background=self.C_INPUT,
+            foreground=self.C_TEXT,
+            selectbackground=self.C_ACCENT
         )
 
-    # Construcción de la UI
+    # Main UI 
 
-    def _construir_ui(self) -> None:
-        """Construye el encabezado y las pestañas principales."""
-
-        # Encabezado
-        encabezado = tk.Frame(self, bg=self.COLOR_ACENTO, height=55)
-        encabezado.pack(fill="x")
+    def _build_ui(self) -> None:
+        # Header bar
+        header = tk.Frame(self, bg=self.C_ACCENT, height=58)
+        header.pack(fill="x")
+        header.pack_propagate(False)
         tk.Label(
-            encabezado,
-            text=" Software FJ Sistema Integral de Gestión",
-            font=("Segoe UI", 14, "bold"),
-            bg=self.COLOR_ACENTO,
-            fg="white",
-            pady=12
-        ).pack()
+            header,
+            text="SOFTWARE FJ  |  Integrated Client, Service and Reservation Management",
+            font=("Segoe UI", 13, "bold"),
+            bg=self.C_ACCENT,
+            fg="white"
+        ).pack(expand=True)
 
-        # Notebook (pestañas)
+        # Notebook
         nb = ttk.Notebook(self)
         nb.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self._tab_clientes(nb)
-        self._tab_servicios(nb)
-        self._tab_reservas(nb)
+        self._tab_clients(nb)
+        self._tab_services(nb)
+        self._tab_reservations(nb)
         self._tab_logs(nb)
 
-    #  PESTAÑA 1 — CLIENTES
+        # Status bar
+        self._status_var = tk.StringVar(value="System ready.")
+        bar = tk.Frame(self, bg=self.C_PANEL, height=26)
+        bar.pack(fill="x", side="bottom")
+        tk.Label(
+            bar,
+            textvariable=self._status_var,
+            bg=self.C_PANEL,
+            fg=self.C_HINT,
+            font=("Segoe UI", 8),
+            anchor="w",
+            padx=12
+        ).pack(fill="x", pady=4)
 
-    def _tab_clientes(self, nb: ttk.Notebook) -> None:
-        frame = ttk.Frame(nb)
-        nb.add(frame, text=" Clientes")
-        frame.configure(style="TFrame")
+    def _status(self, msg: str) -> None:
+        self._status_var.set(msg)
 
-        # Formulario 
-        form = tk.LabelFrame(
-            frame, text=" Registrar Cliente ",
-            bg=self.COLOR_PANEL, fg=self.COLOR_ACENTO,
-            font=("Segoe UI", 10, "bold"), bd=2
-        )
-        form.pack(fill="x", padx=15, pady=(15, 5))
+    # Reusable widget builders 
 
-        campos = [
-            ("Nombre completo:", "entry_nombre_cli"),
-            ("Documento (cédula):", "entry_doc_cli"),
-            ("Correo electrónico:", "entry_correo_cli"),
-            ("Teléfono:", "entry_tel_cli"),
-        ]
-
-        for i, (label, attr) in enumerate(campos):
-            tk.Label(
-                form, text=label,
-                bg=self.COLOR_PANEL, fg=self.COLOR_TEXTO,
-                font=("Segoe UI", 9)
-            ).grid(row=i, column=0, sticky="w", padx=12, pady=6)
-
-            entrada = tk.Entry(
-                form, width=38,
-                bg=self.COLOR_ENTRADA, fg=self.COLOR_TEXTO,
-                insertbackground=self.COLOR_TEXTO,
-                relief="flat", font=("Segoe UI", 9)
-            )
-            entrada.grid(row=i, column=1, padx=12, pady=6)
-            setattr(self, attr, entrada)
-
-        tk.Button(
-            form, text=" Registrar Cliente",
-            bg=self.COLOR_ACENTO, fg="white",
+    def _field(
+        self,
+        parent,
+        label: str,
+        attr: str,
+        hint: str,
+        row: int,
+        width: int = 34
+    ) -> tk.Entry:
+        """
+        Builds a label + entry + hint block using grid layout.
+        Each field occupies 3 grid rows: label, entry, hint.
+        """
+        r = row * 3
+        tk.Label(
+            parent,
+            text=label,
+            bg=self.C_PANEL,
+            fg=self.C_TEXT,
             font=("Segoe UI", 9, "bold"),
-            relief="flat", cursor="hand2", padx=10,
-            command=self._registrar_cliente
-        ).grid(row=len(campos), column=0, columnspan=2, pady=10)
+            anchor="w"
+        ).grid(row=r, column=0, sticky="w", padx=14, pady=(10, 0))
 
-        # Lista de clientes
-        lista_frame = tk.LabelFrame(
-            frame, text=" Clientes Registrados ",
-            bg=self.COLOR_PANEL, fg=self.COLOR_ACENTO,
-            font=("Segoe UI", 10, "bold"), bd=2
+        entry = tk.Entry(
+            parent,
+            width=width,
+            bg=self.C_INPUT,
+            fg=self.C_TEXT,
+            insertbackground=self.C_TEXT,
+            relief="flat",
+            font=("Segoe UI", 9),
+            highlightthickness=1,
+            highlightbackground=self.C_BORDER,
+            highlightcolor=self.C_ACCENT
         )
-        lista_frame.pack(fill="both", expand=True, padx=15, pady=5)
-
-        self.lista_clientes = tk.Listbox(
-            lista_frame,
-            bg=self.COLOR_ENTRADA, fg=self.COLOR_TEXTO,
-            font=("Segoe UI", 9), relief="flat",
-            selectbackground=self.COLOR_ACENTO
-        )
-        self.lista_clientes.pack(
-            fill="both", expand=True, padx=8, pady=8
-        )
-
-    def _registrar_cliente(self) -> None:
-        """Lee el formulario y crea un Cliente."""
-        try:
-            cliente = Cliente(
-                nombre=self.entry_nombre_cli.get(),
-                documento=self.entry_doc_cli.get(),
-                correo=self.entry_correo_cli.get(),
-                telefono=self.entry_tel_cli.get(),
-            )
-            self._clientes.append(cliente)
-            self.lista_clientes.insert(
-                tk.END,
-                f"#{cliente.id}  {cliente.nombre}  |  {cliente.correo}"
-            )
-            self._limpiar_entradas(
-                self.entry_nombre_cli, self.entry_doc_cli,
-                self.entry_correo_cli, self.entry_tel_cli
-            )
-            messagebox.showinfo(
-                "Cliente Registrado",
-                f"Cliente '{cliente.nombre}' registrado exitosamente."
-            )
-            self.logger.info(f"GUI: Cliente registrado -> {cliente.nombre}")
-            self._actualizar_combos()
-
-        except ErrorSistema as e:
-            messagebox.showerror("Error de Validación", str(e))
-            self.logger.error(f"GUI: Error al registrar cliente -> {e}")
-
-    #  PESTAÑA 2 — SERVICIOS
-
-    def _tab_servicios(self, nb: ttk.Notebook) -> None:
-        frame = ttk.Frame(nb)
-        nb.add(frame, text="Servicios")
-
-        # Tipo de servicio
-        tipo_frame = tk.Frame(frame, bg=self.COLOR_FONDO)
-        tipo_frame.pack(fill="x", padx=15, pady=(15, 0))
+        entry.grid(row=r + 1, column=0, sticky="w", padx=14, pady=2)
+        setattr(self, attr, entry)
 
         tk.Label(
-            tipo_frame, text="Tipo de servicio:",
-            bg=self.COLOR_FONDO, fg=self.COLOR_TEXTO,
-            font=("Segoe UI", 10, "bold")
-        ).pack(side="left", padx=(0, 10))
+            parent,
+            text=hint,
+            bg=self.C_PANEL,
+            fg=self.C_HINT,
+            font=("Segoe UI", 7, "italic"),
+            anchor="w"
+        ).grid(row=r + 2, column=0, sticky="w", padx=16)
 
-        self.tipo_servicio = tk.StringVar(value="Sala")
-        for tipo in ("Sala", "Equipo", "Asesoría"):
-            tk.Radiobutton(
-                tipo_frame, text=tipo,
-                variable=self.tipo_servicio, value=tipo,
-                bg=self.COLOR_FONDO, fg=self.COLOR_TEXTO,
-                selectcolor=self.COLOR_PANEL,
-                activebackground=self.COLOR_FONDO,
-                font=("Segoe UI", 9),
-                command=self._mostrar_campos_servicio
-            ).pack(side="left", padx=6)
+        return entry
 
-        # Campos dinámicos
-        self.form_serv = tk.LabelFrame(
-            frame, text=" Datos del Servicio ",
-            bg=self.COLOR_PANEL, fg=self.COLOR_ACENTO,
-            font=("Segoe UI", 10, "bold"), bd=2
-        )
-        self.form_serv.pack(fill="x", padx=15, pady=8)
-        self._mostrar_campos_servicio()
-
-        # Lista
-        lista_frame = tk.LabelFrame(
-            frame, text=" Servicios Creados ",
-            bg=self.COLOR_PANEL, fg=self.COLOR_ACENTO,
-            font=("Segoe UI", 10, "bold"), bd=2
-        )
-        lista_frame.pack(fill="both", expand=True, padx=15, pady=5)
-
-        self.lista_servicios = tk.Listbox(
-            lista_frame,
-            bg=self.COLOR_ENTRADA, fg=self.COLOR_TEXTO,
-            font=("Segoe UI", 9), relief="flat",
-            selectbackground=self.COLOR_ACENTO
-        )
-        self.lista_servicios.pack(
-            fill="both", expand=True, padx=8, pady=8
-        )
-
-    def _lbl_entry(self, parent, texto, row, attr) -> tk.Entry:
-        """Crea un par label+entry dentro de un frame."""
-        tk.Label(
-            parent, text=texto,
-            bg=self.COLOR_PANEL, fg=self.COLOR_TEXTO,
-            font=("Segoe UI", 9)
-        ).grid(row=row, column=0, sticky="w", padx=12, pady=5)
-        e = tk.Entry(
-            parent, width=34,
-            bg=self.COLOR_ENTRADA, fg=self.COLOR_TEXTO,
-            insertbackground=self.COLOR_TEXTO,
-            relief="flat", font=("Segoe UI", 9)
-        )
-        e.grid(row=row, column=1, padx=12, pady=5)
-        setattr(self, attr, e)
-        return e
-
-    def _mostrar_campos_servicio(self) -> None:
-        """Destruye y reconstruye los campos según el tipo elegido."""
-        for w in self.form_serv.winfo_children():
-            w.destroy()
-
-        tipo = self.tipo_servicio.get()
-        self._lbl_entry(self.form_serv, "Nombre del servicio:", 0, "sv_nombre")
-        self._lbl_entry(self.form_serv, "Precio base por hora ($):", 1, "sv_precio")
-
-        if tipo == "Sala":
-            self._lbl_entry(self.form_serv, "Capacidad máxima (personas):", 2, "sv_cap")
-            tk.Label(
-                self.form_serv, text="¿Tiene proyector?",
-                bg=self.COLOR_PANEL, fg=self.COLOR_TEXTO,
-                font=("Segoe UI", 9)
-            ).grid(row=3, column=0, sticky="w", padx=12, pady=5)
-            self.sv_proyector = tk.BooleanVar()
-            tk.Checkbutton(
-                self.form_serv, variable=self.sv_proyector,
-                bg=self.COLOR_PANEL, activebackground=self.COLOR_PANEL
-            ).grid(row=3, column=1, sticky="w", padx=12)
-
-        elif tipo == "Equipo":
-            self._lbl_entry(self.form_serv, "Tipo de equipo:", 2, "sv_tipo_eq")
-            self._lbl_entry(self.form_serv, "Unidades disponibles:", 3, "sv_unidades")
-
-        elif tipo == "Asesoría":
-            self._lbl_entry(self.form_serv, "Área de especialización:", 2, "sv_area")
-            tk.Label(
-                self.form_serv, text="Nivel del asesor:",
-                bg=self.COLOR_PANEL, fg=self.COLOR_TEXTO,
-                font=("Segoe UI", 9)
-            ).grid(row=3, column=0, sticky="w", padx=12, pady=5)
-            self.sv_nivel = ttk.Combobox(
-                self.form_serv,
-                values=["junior", "senior", "experto"],
-                state="readonly", width=15,
-                font=("Segoe UI", 9)
-            )
-            self.sv_nivel.set("junior")
-            self.sv_nivel.grid(row=3, column=1, sticky="w", padx=12)
-            self._lbl_entry(self.form_serv, "Duración mínima (horas):", 4, "sv_dur_min")
-
-        tk.Button(
-            self.form_serv, text=" Crear Servicio",
-            bg=self.COLOR_ACENTO, fg="white",
+    def _btn(
+        self, parent, text: str, cmd, color: str = None, width: int = 18
+    ) -> tk.Button:
+        return tk.Button(
+            parent,
+            text=text,
+            bg=color or self.C_ACCENT,
+            fg="white",
             font=("Segoe UI", 9, "bold"),
-            relief="flat", cursor="hand2", padx=10,
-            command=self._crear_servicio
-        ).grid(row=10, column=0, columnspan=2, pady=10)
-
-    def _crear_servicio(self) -> None:
-        """Lee el formulario y crea el servicio correspondiente."""
-        try:
-            tipo = self.tipo_servicio.get()
-            nombre = self.sv_nombre.get()
-            precio = float(self.sv_precio.get())
-
-            if tipo == "Sala":
-                servicio = ReservaSala(
-                    nombre=nombre,
-                    precio_base=precio,
-                    capacidad_maxima=int(self.sv_cap.get()),
-                    tiene_proyector=self.sv_proyector.get()
-                )
-            elif tipo == "Equipo":
-                servicio = AlquilerEquipos(
-                    nombre=nombre,
-                    precio_base=precio,
-                    tipo_equipo=self.sv_tipo_eq.get(),
-                    unidades_disponibles=int(self.sv_unidades.get())
-                )
-            else:
-                servicio = AsesoriaEspecializada(
-                    nombre=nombre,
-                    precio_base=precio,
-                    area_especializacion=self.sv_area.get(),
-                    nivel=self.sv_nivel.get(),
-                    duracion_minima=float(self.sv_dur_min.get())
-                )
-
-            self._servicios.append(servicio)
-            self.lista_servicios.insert(
-                tk.END,
-                f"#{servicio.id}  [{tipo}]  {nombre}  |  "
-                f"${precio:,.0f}/h"
-            )
-            messagebox.showinfo(
-                "Servicio Creado",
-                f" Servicio '{nombre}' creado exitosamente."
-            )
-            self.logger.info(f"GUI: Servicio creado -> {nombre}")
-            self._actualizar_combos()
-
-        except ErrorSistema as e:
-            messagebox.showerror("Error en Servicio", str(e))
-            self.logger.error(f"GUI: Error al crear servicio -> {e}")
-        except ValueError as e:
-            messagebox.showerror(
-                "Error de Formato",
-                f"Verifica que precio/capacidad sean números.\n{e}"
-            )
-
-    #  PESTAÑA 3 — RESERVAS
-
-    def _tab_reservas(self, nb: ttk.Notebook) -> None:
-        frame = ttk.Frame(nb)
-        nb.add(frame, text=" Reservas")
-
-        form = tk.LabelFrame(
-            frame, text=" Nueva Reserva ",
-            bg=self.COLOR_PANEL, fg=self.COLOR_ACENTO,
-            font=("Segoe UI", 10, "bold"), bd=2
-        )
-        form.pack(fill="x", padx=15, pady=15)
-
-        # Cliente
-        tk.Label(
-            form, text="Cliente:",
-            bg=self.COLOR_PANEL, fg=self.COLOR_TEXTO,
-            font=("Segoe UI", 9)
-        ).grid(row=0, column=0, sticky="w", padx=12, pady=6)
-        self.combo_cliente = ttk.Combobox(
-            form, state="readonly", width=35,
-            font=("Segoe UI", 9)
-        )
-        self.combo_cliente.grid(row=0, column=1, padx=12, pady=6)
-
-        # Servicio
-        tk.Label(
-            form, text="Servicio:",
-            bg=self.COLOR_PANEL, fg=self.COLOR_TEXTO,
-            font=("Segoe UI", 9)
-        ).grid(row=1, column=0, sticky="w", padx=12, pady=6)
-        self.combo_servicio = ttk.Combobox(
-            form, state="readonly", width=35,
-            font=("Segoe UI", 9)
-        )
-        self.combo_servicio.grid(row=1, column=1, padx=12, pady=6)
-
-        # Duración
-        tk.Label(
-            form, text="Duración (horas):",
-            bg=self.COLOR_PANEL, fg=self.COLOR_TEXTO,
-            font=("Segoe UI", 9)
-        ).grid(row=2, column=0, sticky="w", padx=12, pady=6)
-        self.entry_duracion = tk.Entry(
-            form, width=15,
-            bg=self.COLOR_ENTRADA, fg=self.COLOR_TEXTO,
-            insertbackground=self.COLOR_TEXTO,
-            relief="flat", font=("Segoe UI", 9)
-        )
-        self.entry_duracion.grid(row=2, column=1, sticky="w", padx=12)
-
-        # Botones
-        btn_frame = tk.Frame(form, bg=self.COLOR_PANEL)
-        btn_frame.grid(row=3, column=0, columnspan=2, pady=10)
-
-        for texto, cmd, color in [
-            (" Crear Reserva",    self._crear_reserva,     self.COLOR_ACENTO),
-            (" Confirmar",       self._confirmar_reserva,  "#16a34a"),
-            (" Procesar",        self._procesar_reserva,   "#0284c7"),
-            (" Cancelar",       self._cancelar_reserva,   "#dc2626"),
-        ]:
-            tk.Button(
-                btn_frame, text=texto,
-                bg=color, fg="white",
-                font=("Segoe UI", 9, "bold"),
-                relief="flat", cursor="hand2", padx=8, pady=4,
-                command=cmd
-            ).pack(side="left", padx=5)
-
-        # Lista de reservas
-        lista_frame = tk.LabelFrame(
-            frame, text=" Reservas del Sistema ",
-            bg=self.COLOR_PANEL, fg=self.COLOR_ACENTO,
-            font=("Segoe UI", 10, "bold"), bd=2
-        )
-        lista_frame.pack(fill="both", expand=True, padx=15, pady=5)
-
-        self.lista_reservas = tk.Listbox(
-            lista_frame,
-            bg=self.COLOR_ENTRADA, fg=self.COLOR_TEXTO,
-            font=("Segoe UI", 9), relief="flat",
-            selectbackground=self.COLOR_ACENTO
-        )
-        self.lista_reservas.pack(
-            fill="both", expand=True, padx=8, pady=8
+            relief="flat",
+            cursor="hand2",
+            padx=10,
+            pady=5,
+            width=width,
+            command=cmd
         )
 
-    def _crear_reserva(self) -> None:
-        try:
-            idx_cli = self.combo_cliente.current()
-            idx_srv = self.combo_servicio.current()
-            if idx_cli < 0 or idx_srv < 0:
-                messagebox.showwarning(
-                    "Datos faltantes", "Selecciona un cliente y un servicio."
-                )
-                return
-            duracion = float(self.entry_duracion.get())
-            cliente = self._clientes[idx_cli]
-            servicio = self._servicios[idx_srv]
-
-            reserva = Reserva(
-                cliente=cliente,
-                servicio=servicio,
-                duracion=duracion
-            )
-            self._reservas.append(reserva)
-            self._actualizar_lista_reservas()
-            messagebox.showinfo(
-                "Reserva Creada", f"{reserva}"
-            )
-            self.logger.info(f"GUI: Reserva creada -> {reserva}")
-
-        except ErrorSistema as e:
-            messagebox.showerror("Error en Reserva", str(e))
-            self.logger.error(f"GUI: Error al crear reserva -> {e}")
-        except ValueError:
-            messagebox.showerror(
-                "Error de Formato", "La duración debe ser un número."
-            )
-
-    def _reserva_seleccionada(self):
-        sel = self.lista_reservas.curselection()
-        if not sel:
-            messagebox.showwarning("Sin selección", "Selecciona una reserva.")
-            return None
-        return self._reservas[sel[0]]
-
-    def _confirmar_reserva(self) -> None:
-        reserva = self._reserva_seleccionada()
-        if not reserva:
-            return
-        try:
-            msg = reserva.confirmar()
-            self._actualizar_lista_reservas()
-            messagebox.showinfo("Confirmada", msg)
-        except ErrorSistema as e:
-            messagebox.showerror("Error", str(e))
-            self.logger.error(f"GUI: Error al confirmar -> {e}")
-
-    def _procesar_reserva(self) -> None:
-        reserva = self._reserva_seleccionada()
-        if not reserva:
-            return
-        try:
-            msg = reserva.procesar()
-            self._actualizar_lista_reservas()
-            messagebox.showinfo("Procesada", msg)
-        except ErrorSistema as e:
-            messagebox.showerror("Error", str(e))
-            self.logger.error(f"GUI: Error al procesar -> {e}")
-
-    def _cancelar_reserva(self) -> None:
-        reserva = self._reserva_seleccionada()
-        if not reserva:
-            return
-        try:
-            msg = reserva.cancelar("Cancelado desde la interfaz")
-            self._actualizar_lista_reservas()
-            messagebox.showinfo("Cancelada", msg)
-        except ErrorSistema as e:
-            messagebox.showerror("Error", str(e))
-            self.logger.error(f"GUI: Error al cancelar -> {e}")
-
-    def _actualizar_lista_reservas(self) -> None:
-        self.lista_reservas.delete(0, tk.END)
-        for r in self._reservas:
-            self.lista_reservas.insert(tk.END, str(r))
-
-    #  PESTAÑA 4 — LOGS
-
-    def _tab_logs(self, nb: ttk.Notebook) -> None:
-        frame = ttk.Frame(nb)
-        nb.add(frame, text=" Logs")
-
-        tk.Label(
-            frame,
-            text="Contenido del archivo logs/sistema.log",
-            bg=self.COLOR_FONDO, fg=self.COLOR_TEXTO,
-            font=("Segoe UI", 10, "bold")
-        ).pack(pady=(12, 4))
-
-        self.area_logs = scrolledtext.ScrolledText(
-            frame,
-            bg=self.COLOR_ENTRADA, fg="#86efac",
-            font=("Consolas", 9), relief="flat",
-            state="disabled"
+    def _section(self, parent, title: str, side="left", fill="y", expand=False):
+        frame = tk.LabelFrame(
+            parent,
+            text=f"  {title}  ",
+            bg=self.C_PANEL,
+            fg=self.C_ACCENT,
+            font=("Segoe UI", 10, "bold"),
+            bd=2,
+            relief="groove"
         )
-        self.area_logs.pack(
-            fill="both", expand=True, padx=15, pady=(0, 10)
-        )
-
-        tk.Button(
-            frame, text=" Actualizar Logs",
-            bg=self.COLOR_ACENTO, fg="white",
-            font=("Segoe UI", 9, "bold"),
-            relief="flat", cursor="hand2", padx=10,
-            command=self._cargar_logs
-        ).pack(pady=(0, 10))
-
-        self._cargar_logs()
-
-    def _cargar_logs(self) -> None:
-        """Lee el archivo de logs y lo muestra en el área de texto."""
-        try:
-            with open("logs/sistema.log", "r", encoding="utf-8") as f:
-                contenido = f.read()
-            self.area_logs.configure(state="normal")
-            self.area_logs.delete("1.0", tk.END)
-            self.area_logs.insert(tk.END, contenido)
-            self.area_logs.configure(state="disabled")
-            self.area_logs.see(tk.END)
-        except FileNotFoundError:
-            self.area_logs.configure(state="normal")
-            self.area_logs.insert(
-                tk.END, "Aún no hay archivo de logs generado.\n"
-            )
-            self.area_logs.configure(state="disabled")
-
-    # Utilidades
-
-    def _actualizar_combos(self) -> None:
-        """Actualiza los combos de clientes y servicios en la pestaña Reservas."""
-        self.combo_cliente["values"] = [
-            f"#{c.id} {c.nombre}" for c in self._clientes
-        ]
-        self.combo_servicio["values"] = [
-            f"#{s.id} {s.nombre}" for s in self._servicios
-        ]
+        frame.pack(side=side, fill=fill, expand=expand, padx=6, pady=6)
+        return frame
 
     @staticmethod
-    def _limpiar_entradas(*entradas) -> None:
-        for e in entradas:
-            e.delete(0, tk.END)
+    def _clear(*entries) -> None:
+        for e in entries:
+            if isinstance(e, tk.Entry):
+                e.delete(0, tk.END)
+
+    def _update_combos(self) -> None:
+        self._combo_client["values"] = [
+            f"#{c.id}  {c.nombre}" for c in self._clients
+        ]
+        self._combo_service["values"] = [
+            f"#{s.id}  {s.nombre}" for s in self._services
+        ]
+
+    # Duplicate helpers 
+
+    def _name_taken(self, name: str) -> bool:
+        return any(
+            c.nombre.strip().lower() == name.strip().lower()
+            for c in self._clients
+        )
+
+    def _doc_taken(self, doc: str) -> bool:
+        return any(c.documento == doc.strip() for c in self._clients)
+
+    def _email_taken(self, email: str) -> bool:
+        return any(
+            c.correo.strip().lower() == email.strip().lower()
+            for c in self._clients
+        )
+
+    def _service_name_taken(self, name: str) -> bool:
+        return any(
+            s.nombre.strip().lower() == name.strip().lower()
+            for s in self._services
+        )
+
+    # GUI-level validators 
+
+    @staticmethod
+    def _gui_validate_duration(raw: str) -> float:
+        """Duration must be a number between 1 and 150."""
+        try:
+            val = float(raw)
+        except ValueError:
+            raise ValueError(
+                "Duration must be a number.\n"
+                "Examples: 1  /  2.5  /  10"
+            )
+        if val < 1 or val > 150:
+            raise ValueError(
+                f"Duration must be between 1 and 150 hours.\n"
+                f"Value entered: {raw}"
+            )
+        return val
+
+    @staticmethod
+    def _gui_validate_price(raw: str) -> float:
+        """Price must be a positive number."""
+        try:
+            val = float(raw)
+        except ValueError:
+            raise ValueError(
+                "Base price must be a number.\n"
+                "Example: 80000"
+            )
+        if val <= 0:
+            raise ValueError(
+                "Base price must be greater than zero.\n"
+                f"Value entered: {raw}"
+            )
+        return val
+
+    @staticmethod
+    def _gui_validate_positive_int(raw: str, field: str) -> int:
+        """Field must be a positive whole number."""
+        try:
+            val = int(raw)
+        except ValueError:
+            raise ValueError(
+                f"{field} must be a whole number with no decimals.\n"
+                f"Example: 5"
+            )
+        if val <= 0:
+            raise ValueError(
+                f"{field} must be greater than zero.\n"
+                f"Value entered: {raw}"
+            )
+        return val
+
+    @staticmethod
+    def _is_impossible_phone(digits: str) -> bool:
+        """Returns True if all digits are the same, e.g. 0000000000."""
+        return len(set(digits)) == 1 if digits else False
+
+    #  TAB 1 — CLIENTS
+
+    def _tab_clients(self, nb: ttk.Notebook) -> None:
+        outer = ttk.Frame(nb)
+        nb.add(outer, text="Clients")
+
+        wrapper = tk.Frame(outer, bg=self.C_BG)
+        wrapper.pack(fill="both", expand=True, padx=6, pady=6)
+
+        # Left — registration form
+        left_wrap = tk.Frame(wrapper, bg=self.C_BG)
+        left_wrap.pack(side="left", fill="y")
+
+        form = self._section(left_wrap, "Register New Client", side="top", fill="x")
+
+        self._field(
+            form, "Full Name", "_cli_name",
+            hint="Letters, accents and spaces only. Min 3 characters.",
+            row=0
+        )
+        self._field(
+            form, "ID Document (cedula)", "_cli_doc",
+            hint="Positive numbers only. Min 6, max 15 digits.",
+            row=1
+        )
+        self._field(
+            form, "Email Address", "_cli_email",
+            hint="Format: name@domain.com",
+            row=2
+        )
+        self._field(
+            form, "Phone Number", "_cli_phone",
+            hint="Numbers only, minimum 10 digits. Example: 3101234567",
+            row=3
+        )
+
+        self._btn(
+            form, "Register Client", self._register_client
+        ).grid(row=13, column=0, padx=14, pady=14, sticky="w")
+
+        # Right — client list
+        right_wrap = tk.Frame(wrapper, bg=self.C_BG)
+        right_wrap.pack(side="right", fill="both", expand=True)
+
+        list_frame = self._section(
+            right_wrap, "Registered Clients",
+            side="top", fill="both", expand=True
+        )
+
+        self._clients_box = tk.Listbox(
+            list_frame,
+            bg=self.C_INPUT,
+            fg=self.C_TEXT,
+            font=("Consolas", 9),
+            relief="flat",
+            selectbackground=self.C_ACCENT,
+            activestyle="none"
+        )
+        self._clients_box.pack(fill="both", expand=True, padx=8, pady=8)
+
+        self._clients_count = tk.StringVar(value="Total: 0 clients")
+        tk.Label(
+            right_wrap,
+            textvariable=self._clients_count,
+            bg=self.C_BG,
+            fg=self.C_HINT,
+            font=("Segoe UI", 8)
+        ).pack(anchor="e", padx=8)
+
+    def _register_client(self) -> None:
+        name  = self._cli_name.get().strip()
+        doc   = self._cli_doc.get().strip()
+        email = self._cli_email.get().strip()
+        phone = self._cli_phone.get().strip()
+
+        # Duplicate checks before creating object
+        if self._name_taken(name):
+            messagebox.showwarning(
+                "Duplicate Name",
+                f"A client named '{name}' already exists.\n"
+                "Please verify the information."
+            )
+            return
+
+        if self._doc_taken(doc):
+            messagebox.showwarning(
+                "Duplicate Document",
+                f"Document '{doc}' is already registered."
+            )
+            return
+
+        if self._email_taken(email):
+            messagebox.showwarning(
+                "Duplicate Email",
+                f"Email '{email}' is already linked to another client."
+            )
+            return
+
+        # Impossible phone check at GUI level
+        digits = phone.lstrip("+").replace("-", "").replace(" ", "")
+        if digits.isdigit() and digits and self._is_impossible_phone(digits):
+            messagebox.showerror(
+                "Invalid Phone Number",
+                f"'{phone}' is not a valid phone number.\n"
+                "All digits cannot be identical (e.g. 0000000000 or 1111111111)."
+            )
+            return
+
+        try:
+            client = Cliente(
+                nombre=name,
+                documento=doc,
+                correo=email,
+                telefono=phone
+            )
+            self._clients.append(client)
+            self._clients_box.insert(
+                tk.END,
+                f"  #{client.id:<4}  {client.nombre:<26}  {client.correo}"
+            )
+            self._clients_count.set(f"Total: {len(self._clients)} client(s)")
+            self._clear(
+                self._cli_name, self._cli_doc,
+                self._cli_email, self._cli_phone
+            )
+            self._update_combos()
+            self._status(f"Client '{client.nombre}' registered successfully.")
+            self._logger.info(f"GUI: Client registered -> {client.nombre}")
+            messagebox.showinfo(
+                "Client Registered",
+                f"Client '{client.nombre}' was registered successfully."
+            )
+
+        except ErrorSistema as e:
+            messagebox.showerror("Validation Error", str(e))
+            self._logger.error(f"GUI: Error registering client -> {e}")
+            self._status(f"Error: {e}")
+
+    #  TAB 2 — SERVICES
+
+    def _tab_services(self, nb: ttk.Notebook) -> None:
+        outer = ttk.Frame(nb)
+        nb.add(outer, text="Services")
+
+        wrapper = tk.Frame(outer, bg=self.C_BG)
+        wrapper.pack(fill="both", expand=True, padx=6, pady=6)
+
+        left_wrap = tk.Frame(wrapper, bg=self.C_BG)
+        left_wrap.pack(side="left", fill="y")
+
+        # Service type selector
+        type_frame = self._section(
+            left_wrap, "Service Type", side="top", fill="x"
+        )
+        self._svc_type = tk.StringVar(value="Room")
+        for label, val in [
+            ("Room Reservation", "Room"),
+            ("Equipment Rental", "Equipment"),
+            ("Specialized Advisory", "Advisory"),
+        ]:
+            tk.Radiobutton(
+                type_frame,
+                text=label,
+                variable=self._svc_type,
+                value=val,
+                bg=self.C_PANEL,
+                fg=self.C_TEXT,
+                selectcolor=self.C_INPUT,
+                activebackground=self.C_PANEL,
+                activeforeground=self.C_TEXT,
+                font=("Segoe UI", 9),
+                command=self._rebuild_service_form
+            ).pack(anchor="w", padx=14, pady=4)
+
+        # Dynamic form placeholder
+        self._svc_form_frame = self._section(
+            left_wrap, "Service Details", side="top", fill="x"
+        )
+        self._rebuild_service_form()
+
+        # Right — service list
+        right_wrap = tk.Frame(wrapper, bg=self.C_BG)
+        right_wrap.pack(side="right", fill="both", expand=True)
+
+        list_frame = self._section(
+            right_wrap, "Created Services",
+            side="top", fill="both", expand=True
+        )
+        self._services_box = tk.Listbox(
+            list_frame,
+            bg=self.C_INPUT,
+            fg=self.C_TEXT,
+            font=("Consolas", 9),
+            relief="flat",
+            selectbackground=self.C_ACCENT,
+            activestyle="none"
+        )
+        self._services_box.pack(fill="both", expand=True, padx=8, pady=8)
+
+        self._services_count = tk.StringVar(value="Total: 0 services")
+        tk.Label(
+            right_wrap,
+            textvariable=self._services_count,
+            bg=self.C_BG,
+            fg=self.C_HINT,
+            font=("Segoe UI", 8)
+        ).pack(anchor="e", padx=8)
+
+    def _svc_field(
+        self, label: str, attr: str, hint: str, row: int
+    ) -> tk.Entry:
+        """Builds a labeled field inside the dynamic service form."""
+        return self._field(
+            self._svc_form_frame, label, attr, hint, row, width=30
+        )
+
+    def _rebuild_service_form(self) -> None:
+        for w in self._svc_form_frame.winfo_children():
+            w.destroy()
+
+        stype = self._svc_type.get()
+
+        self._svc_field(
+            "Service Name", "_sv_name",
+            hint="Unique name, no special symbols.",
+            row=0
+        )
+        self._svc_field(
+            "Base Price per Hour ($)", "_sv_price",
+            hint="Positive number only. Example: 80000",
+            row=1
+        )
+
+        if stype == "Room":
+            self._svc_field(
+                "Max Capacity (people)", "_sv_cap",
+                hint="Positive whole number. Example: 10",
+                row=2
+            )
+            tk.Label(
+                self._svc_form_frame,
+                text="Includes Projector?",
+                bg=self.C_PANEL, fg=self.C_TEXT,
+                font=("Segoe UI", 9, "bold")
+            ).grid(row=9, column=0, sticky="w", padx=14, pady=(10, 0))
+            self._sv_projector = tk.BooleanVar()
+            tk.Checkbutton(
+                self._svc_form_frame,
+                variable=self._sv_projector,
+                text="Yes",
+                bg=self.C_PANEL, fg=self.C_TEXT,
+                selectcolor=self.C_INPUT,
+                activebackground=self.C_PANEL,
+                activeforeground=self.C_TEXT,
+                font=("Segoe UI", 9)
+            ).grid(row=10, column=0, sticky="w", padx=14, pady=2)
+
+        elif stype == "Equipment":
+            self._svc_field(
+                "Equipment Type", "_sv_eq_type",
+                hint="Description of the equipment. Example: Dell Laptop",
+                row=2
+            )
+            self._svc_field(
+                "Available Units", "_sv_units",
+                hint="Positive whole number. Example: 5",
+                row=3
+            )
+
+        elif stype == "Advisory":
+            self._svc_field(
+                "Area of Expertise", "_sv_area",
+                hint="Example: Cybersecurity, Networks, Data Science",
+                row=2
+            )
+            tk.Label(
+                self._svc_form_frame,
+                text="Advisor Level",
+                bg=self.C_PANEL, fg=self.C_TEXT,
+                font=("Segoe UI", 9, "bold")
+            ).grid(row=9, column=0, sticky="w", padx=14, pady=(10, 0))
+            self._sv_level = ttk.Combobox(
+                self._svc_form_frame,
+                values=["Junior", "Senior", "Expert"],
+                state="readonly",
+                width=20,
+                font=("Segoe UI", 9)
+            )
+            self._sv_level.set("Junior")
+            self._sv_level.grid(row=10, column=0, sticky="w", padx=14, pady=2)
+            self._svc_field(
+                "Minimum Duration (hours)", "_sv_min_dur",
+                hint="Numbers only, range 1-150. Example: 2 or 2.5",
+                row=4
+            )
+
+        self._btn(
+            self._svc_form_frame, "Create Service", self._create_service
+        ).grid(row=30, column=0, padx=14, pady=14, sticky="w")
+
+    def _create_service(self) -> None:
+        stype = self._svc_type.get()
+        name  = self._sv_name.get().strip()
+
+        if not name:
+            messagebox.showerror(
+                "Missing Data",
+                "Service name cannot be empty."
+            )
+            return
+
+        if self._service_name_taken(name):
+            messagebox.showwarning(
+                "Duplicate Service",
+                f"A service named '{name}' already exists.\n"
+                "Please choose a different name."
+            )
+            return
+
+        try:
+            price = self._gui_validate_price(self._sv_price.get())
+
+            if stype == "Room":
+                capacity = self._gui_validate_positive_int(
+                    self._sv_cap.get(), "Max Capacity"
+                )
+                service = ReservaSala(
+                    nombre=name,
+                    precio_base=price,
+                    capacidad_maxima=capacity,
+                    tiene_proyector=self._sv_projector.get()
+                )
+
+            elif stype == "Equipment":
+                units = self._gui_validate_positive_int(
+                    self._sv_units.get(), "Available Units"
+                )
+                service = AlquilerEquipos(
+                    nombre=name,
+                    precio_base=price,
+                    tipo_equipo=self._sv_eq_type.get().strip(),
+                    unidades_disponibles=units
+                )
+
+            else:
+                level_map = {
+                    "Junior": "junior",
+                    "Senior": "senior",
+                    "Expert": "experto"
+                }
+                nivel = level_map.get(self._sv_level.get(), "junior")
+                min_dur = self._gui_validate_duration(self._sv_min_dur.get())
+                service = AsesoriaEspecializada(
+                    nombre=name,
+                    precio_base=price,
+                    area_especializacion=self._sv_area.get().strip(),
+                    nivel=nivel,
+                    duracion_minima=min_dur
+                )
+
+            self._services.append(service)
+            self._services_box.insert(
+                tk.END,
+                f"  #{service.id:<4}  [{stype:<9}]  {name:<22}  ${price:,.0f}/h"
+            )
+            self._services_count.set(f"Total: {len(self._services)} service(s)")
+            self._update_combos()
+            self._status(f"Service '{name}' created successfully.")
+            self._logger.info(f"GUI: Service created -> {name}")
+            messagebox.showinfo(
+                "Service Created",
+                f"Service '{name}' was created successfully."
+            )
+
+        except ValueError as e:
+            messagebox.showerror("Input Error", str(e))
+            self._logger.error(f"GUI: Input error creating service -> {e}")
+            self._status(f"Input error: {e}")
+        except ErrorSistema as e:
+            messagebox.showerror("Service Error", str(e))
+            self._logger.error(f"GUI: Error creating service -> {e}")
+            self._status(f"Error: {e}")
+
+    #  TAB 3 — RESERVATIONS
+
+    def _tab_reservations(self, nb: ttk.Notebook) -> None:
+        outer = ttk.Frame(nb)
+        nb.add(outer, text="Reservations")
+
+        wrapper = tk.Frame(outer, bg=self.C_BG)
+        wrapper.pack(fill="both", expand=True, padx=6, pady=6)
+
+        left_wrap = tk.Frame(wrapper, bg=self.C_BG)
+        left_wrap.pack(side="left", fill="y")
+
+        form = self._section(left_wrap, "New Reservation", side="top", fill="x")
+
+        # Client combo
+        tk.Label(
+            form, text="Client",
+            bg=self.C_PANEL, fg=self.C_TEXT,
+            font=("Segoe UI", 9, "bold"), anchor="w"
+        ).grid(row=0, column=0, sticky="w", padx=14, pady=(12, 0))
+        self._combo_client = ttk.Combobox(
+            form, state="readonly", width=34, font=("Segoe UI", 9)
+        )
+        self._combo_client.grid(row=1, column=0, sticky="w", padx=14, pady=2)
+        tk.Label(
+            form, text="Select a registered client from the list.",
+            bg=self.C_PANEL, fg=self.C_HINT,
+            font=("Segoe UI", 7, "italic"), anchor="w"
+        ).grid(row=2, column=0, sticky="w", padx=16)
+
+        # Service combo
+        tk.Label(
+            form, text="Service",
+            bg=self.C_PANEL, fg=self.C_TEXT,
+            font=("Segoe UI", 9, "bold"), anchor="w"
+        ).grid(row=3, column=0, sticky="w", padx=14, pady=(10, 0))
+        self._combo_service = ttk.Combobox(
+            form, state="readonly", width=34, font=("Segoe UI", 9)
+        )
+        self._combo_service.grid(row=4, column=0, sticky="w", padx=14, pady=2)
+        tk.Label(
+            form, text="Select an available service from the list.",
+            bg=self.C_PANEL, fg=self.C_HINT,
+            font=("Segoe UI", 7, "italic"), anchor="w"
+        ).grid(row=5, column=0, sticky="w", padx=16)
+
+        # Duration
+        tk.Label(
+            form, text="Duration (hours)",
+            bg=self.C_PANEL, fg=self.C_TEXT,
+            font=("Segoe UI", 9, "bold"), anchor="w"
+        ).grid(row=6, column=0, sticky="w", padx=14, pady=(10, 0))
+        self._entry_duration = tk.Entry(
+            form, width=22,
+            bg=self.C_INPUT, fg=self.C_TEXT,
+            insertbackground=self.C_TEXT,
+            relief="flat", font=("Segoe UI", 9),
+            highlightthickness=1,
+            highlightbackground=self.C_BORDER,
+            highlightcolor=self.C_ACCENT
+        )
+        self._entry_duration.grid(row=7, column=0, sticky="w", padx=14, pady=2)
+        tk.Label(
+            form,
+            text="Numbers only, range 1-150. Format: 4 or 4.5",
+            bg=self.C_PANEL, fg=self.C_HINT,
+            font=("Segoe UI", 7, "italic"), anchor="w"
+        ).grid(row=8, column=0, sticky="w", padx=16)
+
+        # Action buttons
+        btn_frame = tk.Frame(form, bg=self.C_PANEL)
+        btn_frame.grid(row=9, column=0, pady=12, padx=14, sticky="w")
+
+        for label, cmd, color in [
+            ("Create",  self._create_reservation,  self.C_ACCENT),
+            ("Confirm", self._confirm_reservation,  "#16a34a"),
+            ("Process", self._process_reservation,  "#0284c7"),
+            ("Cancel",  self._cancel_reservation,   "#dc2626"),
+        ]:
+            self._btn(btn_frame, label, cmd, color=color, width=9).pack(
+                side="left", padx=3
+            )
+
+        # Right — reservations list
+        right_wrap = tk.Frame(wrapper, bg=self.C_BG)
+        right_wrap.pack(side="right", fill="both", expand=True)
+
+        list_frame = self._section(
+            right_wrap, "System Reservations",
+            side="top", fill="both", expand=True
+        )
+        self._reservations_box = tk.Listbox(
+            list_frame,
+            bg=self.C_INPUT,
+            fg=self.C_TEXT,
+            font=("Consolas", 9),
+            relief="flat",
+            selectbackground=self.C_ACCENT,
+            activestyle="none"
+        )
+        self._reservations_box.pack(fill="both", expand=True, padx=8, pady=8)
+
+        self._res_count = tk.StringVar(value="Total: 0 reservations")
+        tk.Label(
+            right_wrap,
+            textvariable=self._res_count,
+            bg=self.C_BG,
+            fg=self.C_HINT,
+            font=("Segoe UI", 8)
+        ).pack(anchor="e", padx=8)
+
+    def _create_reservation(self) -> None:
+        try:
+            idx_c = self._combo_client.current()
+            idx_s = self._combo_service.current()
+            if idx_c < 0 or idx_s < 0:
+                messagebox.showwarning(
+                    "Missing Data",
+                    "Please select both a client and a service."
+                )
+                return
+            duration = self._gui_validate_duration(self._entry_duration.get())
+            client  = self._clients[idx_c]
+            service = self._services[idx_s]
+
+            reservation = Reserva(
+                cliente=client,
+                servicio=service,
+                duracion=duration
+            )
+            self._reservations.append(reservation)
+            self._refresh_reservations()
+            self._res_count.set(
+                f"Total: {len(self._reservations)} reservation(s)"
+            )
+            self._status(f"Reservation #{reservation.id} created.")
+            self._logger.info(f"GUI: Reservation created -> {reservation}")
+            messagebox.showinfo("Reservation Created", str(reservation))
+
+        except ValueError as e:
+            messagebox.showerror("Input Error", str(e))
+            self._logger.error(f"GUI: Input error creating reservation -> {e}")
+        except ErrorSistema as e:
+            messagebox.showerror("Reservation Error", str(e))
+            self._logger.error(f"GUI: Error creating reservation -> {e}")
+
+    def _selected_reservation(self):
+        sel = self._reservations_box.curselection()
+        if not sel:
+            messagebox.showwarning(
+                "No Selection",
+                "Please select a reservation from the list first."
+            )
+            return None
+        return self._reservations[sel[0]]
+
+    def _confirm_reservation(self) -> None:
+        r = self._selected_reservation()
+        if not r:
+            return
+        try:
+            msg = r.confirmar()
+            self._refresh_reservations()
+            self._status(f"Reservation #{r.id} confirmed.")
+            messagebox.showinfo("Confirmed", msg)
+        except ErrorSistema as e:
+            messagebox.showerror("Error", str(e))
+            self._logger.error(f"GUI: Error confirming reservation -> {e}")
+
+    def _process_reservation(self) -> None:
+        r = self._selected_reservation()
+        if not r:
+            return
+        try:
+            msg = r.procesar()
+            self._refresh_reservations()
+            self._status(f"Reservation #{r.id} processed.")
+            messagebox.showinfo("Processed", msg)
+        except ErrorSistema as e:
+            messagebox.showerror("Error", str(e))
+            self._logger.error(f"GUI: Error processing reservation -> {e}")
+
+    def _cancel_reservation(self) -> None:
+        r = self._selected_reservation()
+        if not r:
+            return
+        try:
+            msg = r.cancelar("Cancelled from the interface")
+            self._refresh_reservations()
+            self._status(f"Reservation #{r.id} cancelled.")
+            messagebox.showinfo("Cancelled", msg)
+        except ErrorSistema as e:
+            messagebox.showerror("Error", str(e))
+            self._logger.error(f"GUI: Error cancelling reservation -> {e}")
+
+    def _refresh_reservations(self) -> None:
+        self._reservations_box.delete(0, tk.END)
+        for r in self._reservations:
+            self._reservations_box.insert(tk.END, f"  {r}")
+
+    #  TAB 4 — SYSTEM LOGS
+
+    def _tab_logs(self, nb: ttk.Notebook) -> None:
+        outer = ttk.Frame(nb)
+        nb.add(outer, text="System Logs")
+
+        # Toolbar
+        toolbar = tk.Frame(outer, bg=self.C_PANEL, height=44)
+        toolbar.pack(fill="x", padx=10, pady=(10, 0))
+        toolbar.pack_propagate(False)
+
+        tk.Label(
+            toolbar,
+            text="Source file:  logs/sistema.log",
+            bg=self.C_PANEL,
+            fg=self.C_HINT,
+            font=("Segoe UI", 8)
+        ).pack(side="left", padx=12, pady=10)
+
+        self._btn(
+            toolbar, "Refresh Logs", self._load_logs,
+            color=self.C_ACCENT, width=14
+        ).pack(side="right", padx=10, pady=8)
+
+        # Color legend
+        legend_frame = tk.Frame(outer, bg=self.C_BG)
+        legend_frame.pack(fill="x", padx=10, pady=6)
+
+        tk.Label(
+            legend_frame,
+            text="Log levels:",
+            bg=self.C_BG,
+            fg=self.C_HINT,
+            font=("Segoe UI", 8, "bold")
+        ).pack(side="left", padx=(4, 8))
+
+        for label, color in [
+            ("INFO",     "#22c55e"),
+            ("WARNING",  "#f59e0b"),
+            ("ERROR",    "#ef4444"),
+            ("CRITICAL", "#dc2626"),
+        ]:
+            tk.Label(
+                legend_frame,
+                text=f"  {label}  ",
+                bg=color,
+                fg="white",
+                font=("Segoe UI", 8, "bold"),
+                padx=6,
+                pady=2
+            ).pack(side="left", padx=4)
+
+        # Log text area
+        log_border = tk.Frame(
+            outer, bg=self.C_BORDER, bd=1, relief="groove"
+        )
+        log_border.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+        self._log_area = scrolledtext.ScrolledText(
+            log_border,
+            bg="#0d0d1a",
+            fg=self.C_TEXT,
+            font=("Consolas", 9),
+            relief="flat",
+            state="disabled",
+            wrap="none",
+            padx=10,
+            pady=6
+        )
+        self._log_area.pack(fill="both", expand=True)
+
+        self._log_area.tag_configure("INFO",     foreground="#22c55e")
+        self._log_area.tag_configure("WARNING",  foreground="#f59e0b")
+        self._log_area.tag_configure("ERROR",    foreground="#ef4444")
+        self._log_area.tag_configure("CRITICAL", foreground="#dc2626")
+        self._log_area.tag_configure("SEPARATOR",foreground="#4c4c6e")
+        self._log_area.tag_configure("DEFAULT",  foreground="#64748b")
+
+        self._load_logs()
+
+    def _load_logs(self) -> None:
+        self._log_area.configure(state="normal")
+        self._log_area.delete("1.0", tk.END)
+        try:
+            with open("logs/sistema.log", "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            for line in lines:
+                stripped = line.strip()
+                if not stripped:
+                    self._log_area.insert(tk.END, "\n", "DEFAULT")
+                    continue
+                if set(stripped) <= {"=", "-", " "}:
+                    self._log_area.insert(tk.END, line, "SEPARATOR")
+                    continue
+                if "| INFO" in line:
+                    tag = "INFO"
+                elif "| WARNING" in line:
+                    tag = "WARNING"
+                elif "| ERROR" in line:
+                    tag = "ERROR"
+                elif "| CRITICAL" in line:
+                    tag = "CRITICAL"
+                else:
+                    tag = "DEFAULT"
+                self._log_area.insert(tk.END, line, tag)
+
+        except FileNotFoundError:
+            self._log_area.insert(
+                tk.END,
+                "No log file found yet.\n"
+                "Run the system to generate log entries.\n",
+                "DEFAULT"
+            )
+
+        self._log_area.configure(state="disabled")
+        self._log_area.see(tk.END)
+        self._status("Logs refreshed successfully.")
