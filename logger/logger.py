@@ -70,13 +70,13 @@ class Logger:
         self._logger.addHandler(manejador_consola)
 
         # Registro inicial
-        self._logger.info("=" * 60)
+        self._logger.info(" " * 60)
         self._logger.info("Sistema Software FJ iniciado")
         self._logger.info(
             f"Sesión iniciada: "
             f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
-        self._logger.info("=" * 60)
+        self._logger.info(" " * 60)
 
     # Métodos de registro
 

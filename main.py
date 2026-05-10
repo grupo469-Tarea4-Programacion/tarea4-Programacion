@@ -32,9 +32,9 @@ logger = Logger()
 
 def separador(titulo: str) -> None:
     """Imprime un separador visual para organizar la salida en consola."""
-    print(f"\n{'='*60}")
+    print(f"\n{' '*60}")
     print(f"  {titulo}")
-    print(f"{'='*60}")
+    print(f"{' '*60}")
 
 
 #  OPERACIONES SIMULADAS
