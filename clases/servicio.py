@@ -204,4 +204,3 @@ class Servicio(Entidad):
             f"Precio base: ${self._precio_base:,.2f}/h | "
             f"{estado}"
         )
-    

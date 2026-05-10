@@ -61,6 +61,9 @@ class AlquilerEquipos(Servicio):
         self.__unidades_disponibles: int = unidades_disponibles
         self.__requiere_deposito: bool = requiere_deposito
 
+        # Validación final del objeto
+        self.validar()
+
     # Propiedades 
 
     @property
@@ -206,4 +209,3 @@ class AlquilerEquipos(Servicio):
             f"Unidades: {self.__unidades_disponibles} | "
             f"${self._precio_base:,.2f}/h por unidad"
         )
-    

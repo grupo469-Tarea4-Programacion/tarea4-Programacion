@@ -73,6 +73,9 @@ class AsesoriaEspecializada(Servicio):
         self.__nivel: str = nivel
         self.__duracion_minima: float = duracion_minima
 
+        # Validación final del objeto
+        self.validar()
+
     # Propiedades 
 
     @property
@@ -178,4 +181,3 @@ class AsesoriaEspecializada(Servicio):
             f"Nivel: {self.__nivel.capitalize()} | "
             f"${self._precio_base:,.2f}/h base"
         )
-    

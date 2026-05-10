@@ -113,17 +113,17 @@ class Reserva:
             if duracion is None:
                 raise ErrorParametroFaltante("duracion")
             if not isinstance(cliente, Cliente):
-                raise ErrorReservaInvalida("El parámetro 'cliente' no es una instancia de Cliente")
+                raise ErrorReservaInvalida("The 'cliente' parameter is not an instance of Cliente")
             if not isinstance(servicio, Servicio):
-                raise ErrorReservaInvalida("El parámetro 'servicio' no es una instancia de Servicio")
+                raise ErrorReservaInvalida("The 'servicio' parameter is not an instance of Servicio")
             if not isinstance(duracion, (int, float)) or duracion <= 0:
                 raise ErrorReservaInvalida(
-                    f"La duración debe ser un número mayor a 0, "
-                    f"se recibió: {duracion}"
+                    f"Duration must be a number greater than 0, "
+                    f"received: {duracion}"
                 )
             if not cliente.activo:
                 raise ErrorReservaInvalida(
-                    f"El cliente '{cliente.nombre}' está inactivo"
+                    f"The client '{cliente.nombre}' is inactive"
                 )
             if not servicio.disponible:
                 raise ErrorServicioNoDisponible(servicio.nombre)
@@ -187,7 +187,7 @@ class Reserva:
             if self.__estado != "pendiente":
                 raise ErrorOperacionNoPermitida(
                     "confirmar",
-                    f"la reserva está en estado '{self.__estado}'"
+                    f"the reservation is in state '{self.__estado}'"
                 )
 
             self.__costo_total = self.__servicio.calcular_costo(
@@ -202,21 +202,21 @@ class Reserva:
         except (ErrorOperacionNoPermitida, ErrorCalculoInconsistente,
                 ErrorServicioNoDisponible):
             self._logger.error(
-                f"Error al confirmar Reserva #{self.__id}: "
+                f"Error confirming Reservation #{self.__id}: "
                 f"{self.__estado}"
             )
             raise
         except Exception as e:
             raise ErrorReserva(
-                f"Error inesperado al confirmar reserva #{self.__id}: {e}"
+                f"Unexpected error while confirming reservation #{self.__id}: {e}"
             ) from e
         else:
             self.__estado = "confirmada"
             self.__fecha_confirmacion = datetime.now()
             mensaje = (
-                f"Reserva #{self.__id} confirmada | "
-                f"Cliente: {self.__cliente.nombre} | "
-                f"Costo total: ${self.__costo_total:,.2f}"
+                f"Reservation #{self.__id} confirmed | "
+                f"Client: {self.__cliente.nombre} | "
+                f"Total cost: ${self.__costo_total:,.2f}"
             )
             self._logger.info(mensaje)
             return mensaje
@@ -240,25 +240,25 @@ class Reserva:
             if self.__estado in ["cancelada", "procesada"]:
                 raise ErrorOperacionNoPermitida(
                     "cancelar",
-                    f"la reserva ya está en estado '{self.__estado}'"
+                    f"the reservation is already in state '{self.__estado}'"
                 )
 
         except ErrorOperacionNoPermitida:
             self._logger.error(
-                f"Cancelación inválida en Reserva #{self.__id}: "
+                f"Invalid cancellation in Reservation #{self.__id}: "
                 f"estado actual '{self.__estado}'"
             )
             raise
         except Exception as e:
             raise ErrorReserva(
-                f"Error inesperado al cancelar reserva #{self.__id}: {e}"
+                f"Unexpected error while cancelling reservation #{self.__id}: {e}"
             ) from e
         else:
             self.__estado = "cancelada"
             mensaje = (
-                f"Reserva #{self.__id} cancelada | "
-                f"Cliente: {self.__cliente.nombre} | "
-                f"Motivo: {motivo}"
+                f"Reservation #{self.__id} cancelled | "
+                f"Client: {self.__cliente.nombre} | "
+                f"Reason: {motivo}"
             )
             self._logger.info(mensaje)
             return mensaje
@@ -279,28 +279,28 @@ class Reserva:
             if self.__estado != "confirmada":
                 raise ErrorOperacionNoPermitida(
                     "procesar",
-                    f"solo se pueden procesar reservas confirmadas, "
-                    f"estado actual: '{self.__estado}'"
+                    f"only confirmed reservations can be processed, "
+                    f"current state: '{self.__estado}'"
                 )
 
         except ErrorOperacionNoPermitida:
             self._logger.error(
-                f"Procesamiento inválido en Reserva #{self.__id}: "
+                f"Invalid processing in Reservation #{self.__id}: "
                 f"estado actual '{self.__estado}'"
             )
             raise
         except Exception as e:
             raise ErrorReserva(
-                f"Error inesperado al procesar reserva #{self.__id}: {e}"
+                f"Unexpected error while processing reservation #{self.__id}: {e}"
             ) from e
         else:
             self.__estado = "procesada"
             mensaje = (
-                f"Reserva #{self.__id} procesada exitosamente | "
-                f"Cliente: {self.__cliente.nombre} | "
-                f"Servicio: {self.__servicio.nombre} | "
-                f"Duración: {self.__duracion}h | "
-                f"Total pagado: ${self.__costo_total:,.2f}"
+                f"Reservation #{self.__id} processed successfully | "
+                f"Client: {self.__cliente.nombre} | "
+                f"Service: {self.__servicio.nombre} | "
+                f"Duration: {self.__duracion}h | "
+                f"Total paid: ${self.__costo_total:,.2f}"
             )
             self._logger.info(mensaje)
             return mensaje
@@ -312,23 +312,22 @@ class Reserva:
         fecha_str = self.__fecha_creacion.strftime("%Y-%m-%d %H:%M:%S")
         confirmacion_str = (
             self.__fecha_confirmacion.strftime("%Y-%m-%d %H:%M:%S")
-            if self.__fecha_confirmacion else "No confirmada aún"
+            if self.__fecha_confirmacion else "Not confirmed yet"
         )
         return (
-            f"Reserva #{self.__id}\n"
-            f"  Cliente       : {self.__cliente.nombre}\n"
-            f"  Servicio      : {self.__servicio.nombre}\n"
-            f"  Duración      : {self.__duracion}h\n"
-            f"  Estado        : {self.__estado.upper()}\n"
-            f"  Costo total   : ${self.__costo_total:,.2f}\n"
-            f"  Fecha creación: {fecha_str}\n"
-            f"  Confirmación  : {confirmacion_str}"
+            f"Reservation #{self.__id}\n"
+            f"  Client       : {self.__cliente.nombre}\n"
+            f"  Service      : {self.__servicio.nombre}\n"
+            f"  Duration     : {self.__duracion}h\n"
+            f"  Status       : {self.__estado.upper()}\n"
+            f"  Total cost   : ${self.__costo_total:,.2f}\n"
+            f"  Created at   : {fecha_str}\n"
+            f"  Confirmation : {confirmacion_str}"
         )
 
     def __str__(self) -> str:
         return (
-            f"[Reserva #{self.__id}] "
+            f"[Reservation #{self.__id}] "
             f"{self.__cliente.nombre} -> {self.__servicio.nombre} | "
-            f"{self.__duracion}h | Estado: {self.__estado.upper()}"
-        )
-    
+            f"{self.__duracion}h | Status: {self.__estado.upper()}"
+        ) 

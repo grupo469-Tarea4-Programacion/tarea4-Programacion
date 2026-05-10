@@ -49,6 +49,11 @@ class Cliente(Entidad):
         # Primero validamos antes de llamar al padre
         self._validar_parametros_iniciales(nombre, documento, correo, telefono)
 
+        nombre = self._validar_nombre(nombre)
+        documento = self._validar_documento(documento)
+        correo = self._validar_correo(correo)
+        telefono = self._validar_telefono(telefono)
+
         super().__init__(nombre)
 
         self.__documento: str = documento
@@ -56,6 +61,9 @@ class Cliente(Entidad):
         self.__telefono: str = telefono
         self.__activo: bool = True
         self.__reservas: list = []
+
+        # Validación final para asegurar que el objeto nace consistente
+        self.validar()
 
     # Validación interna de parámetros iniciales 
 
@@ -137,7 +145,7 @@ class Cliente(Entidad):
         try:
             if not nombre or not isinstance(nombre, str):
                 raise ErrorValidacion("nombre", "debe ser una cadena de texto")
-            nombre = nombre.strip()
+            nombre = " ".join(nombre.strip().split())
             if len(nombre) < 3:
                 raise ErrorValidacion("nombre", "debe tener al menos 3 caracteres")
             if not re.match(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$", nombre):
@@ -297,4 +305,3 @@ class Cliente(Entidad):
             f"Correo: {self.__correo} | "
             f"Tel: {self.__telefono}"
         )
-    
