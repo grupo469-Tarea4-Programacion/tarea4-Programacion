@@ -90,7 +90,7 @@ class InterfazSoftwareFJ(tk.Tk):
         header.pack(fill="x")
         tk.Label(
             header,
-            text="Software FJ Integrated Management System",
+            text="Software FJ Management System",
             font=("Segoe UI", 14, "bold"),
             bg=self.COLOR_ACENTO,
             fg="white",
